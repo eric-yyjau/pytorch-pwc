@@ -50,7 +50,8 @@ def backwarp(tenInput, tenFlow):
 
 	tenMask = tenOutput[:, -1:, :, :]; tenMask[tenMask > 0.999] = 1.0; tenMask[tenMask < 1.0] = 0.0
 
-	return tenOutput[:, :-1, :, :] * tenMask
+	# return tenOutput[:, :-1, :, :] * tenMask
+	return (tenOutput[:, :-1, :, :] * tenMask).contiguous()
 # end
 
 ##########################################################
@@ -254,6 +255,7 @@ class Network(torch.nn.Module):
 		tenSecond = self.netExtractor(tenSecond)
 
 		objEstimate = self.netSix(tenFirst[-1], tenSecond[-1], None)
+		# print(f"objEstimate: {objEstimate}")
 		objEstimate = self.netFiv(tenFirst[-2], tenSecond[-2], objEstimate)
 		objEstimate = self.netFou(tenFirst[-3], tenSecond[-3], objEstimate)
 		objEstimate = self.netThr(tenFirst[-4], tenSecond[-4], objEstimate)
@@ -298,6 +300,44 @@ def estimate(tenFirst, tenSecond):
 	tenFlow[:, 1, :, :] *= float(intHeight) / float(intPreprocessedHeight)
 
 	return tenFlow[0, :, :, :].cpu()
+# end
+
+def estimate_batch(tenFirst, tenSecond):
+	global netNetwork
+
+	if netNetwork is None:
+		netNetwork = Network().cuda().eval()
+	# end
+
+	assert(tenFirst.shape[3] == tenSecond.shape[3])
+	assert(tenFirst.shape[2] == tenSecond.shape[2])
+
+	batch = tenFirst.shape[0]
+	intWidth = tenFirst.shape[3]
+	intHeight = tenFirst.shape[2]
+
+	# assert(intWidth == 1024) # remember that there is no guarantee for correctness, comment this line out if you acknowledge this and want to continue
+	# assert(intHeight == 436) # remember that there is no guarantee for correctness, comment this line out if you acknowledge this and want to continue
+
+	# tenPreprocessedFirst = tenFirst.cuda().view(1, 3, intHeight, intWidth)
+	# tenPreprocessedSecond = tenSecond.cuda().view(1, 3, intHeight, intWidth)
+	tenPreprocessedFirst = tenFirst
+	tenPreprocessedSecond = tenSecond
+
+	intPreprocessedWidth = int(math.floor(math.ceil(intWidth / 64.0) * 64.0))
+	intPreprocessedHeight = int(math.floor(math.ceil(intHeight / 64.0) * 64.0))
+
+	tenPreprocessedFirst = torch.nn.functional.interpolate(input=tenPreprocessedFirst, size=(intPreprocessedHeight, intPreprocessedWidth), mode='bilinear', align_corners=False)
+	tenPreprocessedSecond = torch.nn.functional.interpolate(input=tenPreprocessedSecond, size=(intPreprocessedHeight, intPreprocessedWidth), mode='bilinear', align_corners=False)
+
+	print(f"tenPreprocessedFirst: {tenPreprocessedFirst.shape}")
+
+	tenFlow = 20.0 * torch.nn.functional.interpolate(input=netNetwork(tenPreprocessedFirst, tenPreprocessedSecond), size=(intHeight, intWidth), mode='bilinear', align_corners=False)
+
+	tenFlow[:, 0, :, :] *= float(intWidth) / float(intPreprocessedWidth)
+	tenFlow[:, 1, :, :] *= float(intHeight) / float(intPreprocessedHeight)
+
+	return tenFlow[:, :, :, :]
 # end
 
 ##########################################################
