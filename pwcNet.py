@@ -24,19 +24,7 @@ torch.set_grad_enabled(False) # make sure to not compute gradients for computati
 
 torch.backends.cudnn.enabled = True # make sure to use cudnn for computational performance
 
-##########################################################
 
-arguments_strModel = 'default'
-arguments_strFirst = './images/first.png'
-arguments_strSecond = './images/second.png'
-arguments_strOut = './out.flo'
-
-for strOption, strArgument in getopt.getopt(sys.argv[1:], '', [ strParameter[2:] + '=' for strParameter in sys.argv[1::2] ])[0]:
-	if strOption == '--model' and strArgument != '': arguments_strModel = strArgument # which model to use
-	if strOption == '--first' and strArgument != '': arguments_strFirst = strArgument # path to the first frame
-	if strOption == '--second' and strArgument != '': arguments_strSecond = strArgument # path to the second frame
-	if strOption == '--out' and strArgument != '': arguments_strOut = strArgument # path to where the output should be stored
-# end
 
 ##########################################################
 
@@ -256,8 +244,8 @@ class Network(torch.nn.Module):
 
 		self.netRefiner = Refiner()
 
-		self.load_state_dict({ strKey.replace('module', 'net'): tenWeight for strKey, tenWeight in torch.load(__file__.replace('run.py', 'network-' + arguments_strModel + '.pytorch')).items() })
-		# self.load_state_dict({ strKey.replace('module', 'net'): tenWeight for strKey, tenWeight in torch.load('network-default.pytorch').items() })
+		# self.load_state_dict({ strKey.replace('module', 'net'): tenWeight for strKey, tenWeight in torch.load(__file__.replace('run.py', 'network-' + arguments_strModel + '.pytorch')).items() })
+		self.load_state_dict({ strKey.replace('module', 'net'): tenWeight for strKey, tenWeight in torch.load('network-default.pytorch').items() })
 		
 	# end
 
@@ -292,8 +280,8 @@ def estimate(tenFirst, tenSecond):
 	intWidth = tenFirst.shape[2]
 	intHeight = tenFirst.shape[1]
 
-	assert(intWidth == 1024) # remember that there is no guarantee for correctness, comment this line out if you acknowledge this and want to continue
-	assert(intHeight == 436) # remember that there is no guarantee for correctness, comment this line out if you acknowledge this and want to continue
+	# assert(intWidth == 1024) # remember that there is no guarantee for correctness, comment this line out if you acknowledge this and want to continue
+	# assert(intHeight == 436) # remember that there is no guarantee for correctness, comment this line out if you acknowledge this and want to continue
 
 	tenPreprocessedFirst = tenFirst.cuda().view(1, 3, intHeight, intWidth)
 	tenPreprocessedSecond = tenSecond.cuda().view(1, 3, intHeight, intWidth)
@@ -315,6 +303,20 @@ def estimate(tenFirst, tenSecond):
 ##########################################################
 
 if __name__ == '__main__':
+	##########################################################
+
+	arguments_strModel = 'default'
+	arguments_strFirst = './images/first.png'
+	arguments_strSecond = './images/second.png'
+	arguments_strOut = './out.flo'
+
+	for strOption, strArgument in getopt.getopt(sys.argv[1:], '', [ strParameter[2:] + '=' for strParameter in sys.argv[1::2] ])[0]:
+		if strOption == '--model' and strArgument != '': arguments_strModel = strArgument # which model to use
+		if strOption == '--first' and strArgument != '': arguments_strFirst = strArgument # path to the first frame
+		if strOption == '--second' and strArgument != '': arguments_strSecond = strArgument # path to the second frame
+		if strOption == '--out' and strArgument != '': arguments_strOut = strArgument # path to where the output should be stored
+	# end
+
 	tenFirst = torch.FloatTensor(numpy.ascontiguousarray(numpy.array(PIL.Image.open(arguments_strFirst))[:, :, ::-1].transpose(2, 0, 1).astype(numpy.float32) * (1.0 / 255.0)))
 	tenSecond = torch.FloatTensor(numpy.ascontiguousarray(numpy.array(PIL.Image.open(arguments_strSecond))[:, :, ::-1].transpose(2, 0, 1).astype(numpy.float32) * (1.0 / 255.0)))
 
